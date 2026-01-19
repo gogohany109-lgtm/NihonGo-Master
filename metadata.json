@@ -1,0 +1,7 @@
+{
+  "name": "NihonGo Master",
+  "description": "An intelligent translator transforming 130+ languages into natural Japanese, complete with cultural context, romaji, and native pronunciation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
