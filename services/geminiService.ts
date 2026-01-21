@@ -167,13 +167,15 @@ export const generateExampleSentence = async (word: string, meaning: string): Pr
 };
 
 export const playJapaneseAudio = async (text: string, speed: number = 1.0): Promise<void> => {
-  if (!text) return;
+  const cleanText = text?.trim();
+  if (!cleanText) return;
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: text }] }],
+      contents: [{ parts: [{ text: cleanText }] }],
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: ['AUDIO'] as any, // Explicitly use string 'AUDIO' to avoid enum issues
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -187,19 +189,15 @@ export const playJapaneseAudio = async (text: string, speed: number = 1.0): Prom
     const base64Audio = audioPart?.inlineData?.data;
     
     if (!base64Audio) {
-        // Log details about why it might have failed
         const finishReason = response.candidates?.[0]?.finishReason;
-        if (finishReason) {
-             console.warn(`TTS generation failed. Finish reason: ${finishReason}`);
-        }
-        
+        // If the model returned text instead of audio, it likely refused the prompt.
         const textPart = parts.find(p => p.text);
         if (textPart?.text) {
              console.warn("TTS returned text instead of audio:", textPart.text);
         }
         
-        console.warn("TTS Response structure:", JSON.stringify(response, null, 2));
-        throw new Error("No audio data returned");
+        console.warn(`TTS generation failed. Finish reason: ${finishReason}`);
+        throw new Error("Failed to generate audio. The text might be unsupported or filtered.");
     }
 
     const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });

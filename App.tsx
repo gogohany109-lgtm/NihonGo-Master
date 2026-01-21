@@ -129,6 +129,12 @@ const App: React.FC = () => {
       localStorage.setItem('savedTranslations', JSON.stringify(updated));
   };
 
+  const handleDeleteHistory = (id: string) => {
+      const updated = history.filter(item => item.id !== id);
+      setHistory(updated);
+      localStorage.setItem('translationHistory', JSON.stringify(updated));
+  };
+
   const handleClearHistory = () => {
     if (window.confirm('Are you sure you want to clear your recent translation history?')) {
         setHistory([]);
@@ -218,6 +224,7 @@ const App: React.FC = () => {
   };
 
   const toggleRecording = async () => {
+    setErrorMsg('');
     if (isRecording) {
       // Stop recording
       mediaRecorderRef.current?.stop();
@@ -259,7 +266,7 @@ const App: React.FC = () => {
         setIsRecording(true);
       } catch (err) {
         console.error("Error accessing microphone:", err);
-        alert("Microphone access denied or not available.");
+        setErrorMsg("Microphone access denied. Please allow microphone access in your browser settings to use voice input.");
       }
     }
   };
@@ -423,6 +430,7 @@ const App: React.FC = () => {
                     title="Recent Translations"
                     onSelect={handleHistorySelect} 
                     onClear={handleClearHistory} 
+                    onDelete={handleDeleteHistory}
                 />
             ) : (
                 <HistoryList 

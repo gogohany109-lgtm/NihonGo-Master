@@ -91,6 +91,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
   const [isRecording, setIsRecording] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [practiceResult, setPracticeResult] = useState<PronunciationResult | null>(null);
+  const [practiceError, setPracticeError] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const handlePlay = async () => {
@@ -98,6 +99,9 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
     setIsPlaying(true);
     try {
       await playJapaneseAudio(result.japanese, playbackSpeed);
+    } catch (e) {
+        console.error("Audio playback error:", e);
+        // Could show a toast or error here if needed
     } finally {
       setIsPlaying(false);
     }
@@ -142,6 +146,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
   };
 
   const togglePracticeRecording = async () => {
+    setPracticeError(null);
     if (isRecording) {
         mediaRecorderRef.current?.stop();
         setIsRecording(false);
@@ -169,6 +174,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
                     setPracticeResult(evalResult);
                 } catch (error) {
                     console.error("Evaluation failed", error);
+                    setPracticeError("Failed to evaluate. Please try again.");
                 } finally {
                     setIsEvaluating(false);
                 }
@@ -178,7 +184,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
             setIsRecording(true);
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert("Microphone access denied. Please enable it to practice pronunciation.");
+            setPracticeError("Microphone access denied. Please check your browser settings.");
         }
     }
   };
@@ -421,7 +427,9 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
                 </button>
                 
                 <div className="flex-grow">
-                    {isRecording ? (
+                    {practiceError ? (
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-2 font-medium">{practiceError}</p>
+                    ) : isRecording ? (
                         <p className="text-sm text-stone-500 dark:text-stone-400 mt-2 italic">Listening... Speak the Japanese text above.</p>
                     ) : isEvaluating ? (
                         <p className="text-sm text-stone-500 dark:text-stone-400 mt-2 animate-pulse">Analyzing pronunciation...</p>
