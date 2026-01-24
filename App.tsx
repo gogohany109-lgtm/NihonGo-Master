@@ -136,7 +136,7 @@ const App: React.FC = () => {
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear your recent translation history?')) {
+    if (window.confirm('Are you sure you want to delete all recent translation history?')) {
         setHistory([]);
         localStorage.removeItem('translationHistory');
     }
