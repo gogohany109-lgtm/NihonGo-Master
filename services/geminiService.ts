@@ -175,7 +175,7 @@ export const playJapaneseAudio = async (text: string, speed: number = 1.0): Prom
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: cleanText }] }],
       config: {
-        responseModalities: ['AUDIO'] as any, // Explicitly use string 'AUDIO' to avoid enum issues
+        responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -190,7 +190,6 @@ export const playJapaneseAudio = async (text: string, speed: number = 1.0): Prom
     
     if (!base64Audio) {
         const finishReason = response.candidates?.[0]?.finishReason;
-        // If the model returned text instead of audio, it likely refused the prompt.
         const textPart = parts.find(p => p.text);
         if (textPart?.text) {
              console.warn("TTS returned text instead of audio:", textPart.text);
