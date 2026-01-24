@@ -323,12 +323,12 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
         </div>
 
         {/* Action Buttons Row */}
-        <div className="flex items-center gap-4 mb-4 border-b border-stone-200 dark:border-stone-700 pb-4 flex-wrap">
+        <div className="flex items-center gap-2 mb-4 border-b border-stone-200 dark:border-stone-700 pb-4 flex-wrap">
             {/* Save Button (New) */}
             {onToggleSave && (
               <button
                 onClick={onToggleSave}
-                className={`flex items-center gap-1.5 text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 ${isSaved ? 'text-japanRed dark:text-red-400' : 'text-stone-400 dark:text-stone-400 hover:text-japanRed dark:hover:text-red-400'}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 hover:bg-stone-100 dark:hover:bg-stone-700/50 ${isSaved ? 'text-japanRed dark:text-red-400' : 'text-stone-400 dark:text-stone-400 hover:text-japanRed dark:hover:text-red-400'}`}
                 title={isSaved ? "Remove from saved" : "Save for offline"}
               >
                 {isSaved ? (
@@ -347,7 +347,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
             {/* Copy Button */}
             <button
             onClick={handleCopy}
-            className={`flex items-center gap-1.5 text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 ${isCopied ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-400 hover:text-japanRed dark:hover:text-red-400'}`}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 hover:bg-stone-100 dark:hover:bg-stone-700/50 ${isCopied ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-400 hover:text-japanRed dark:hover:text-red-400'}`}
             title="Copy to clipboard"
             >
             {isCopied ? (
@@ -370,7 +370,7 @@ export const TranslationCard: React.FC<Props> = ({ result, isSaved, onToggleSave
             {/* Share Button */}
             <button
                 onClick={handleShare}
-                className={`flex items-center gap-1.5 text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 ${isShared ? 'text-indigoDye dark:text-indigo-300' : 'text-stone-400 dark:text-stone-400 hover:text-indigoDye dark:hover:text-indigo-300'}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 focus:outline-none transform active:scale-95 hover:bg-stone-100 dark:hover:bg-stone-700/50 ${isShared ? 'text-indigoDye dark:text-indigo-300' : 'text-stone-400 dark:text-stone-400 hover:text-indigoDye dark:hover:text-indigo-300'}`}
                 title="Share translation"
             >
                 {isShared ? (
