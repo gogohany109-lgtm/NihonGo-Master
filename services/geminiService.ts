@@ -1,13 +1,15 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { TranslationResult, PronunciationResult } from "../types";
 import { decodeBase64, decodeAudioData } from "./audioUtils";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Remove global instance to prevent stale API key usage or config issues
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const translateTextToJapanese = async (
   text: string,
   sourceLanguage: string
 ): Promise<TranslationResult> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const prompt = `
       Translate the following text from ${sourceLanguage} to Japanese.
@@ -70,6 +72,7 @@ export const translateTextToJapanese = async (
 };
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     // Use gemini-3-flash-preview for multimodal tasks (audio to text) via generateContent
     const response = await ai.models.generateContent({
@@ -102,6 +105,7 @@ export const evaluatePronunciation = async (
   mimeType: string, 
   referenceText: string
 ): Promise<PronunciationResult> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const prompt = `
       Listen to the audio. The speaker is trying to say this Japanese text: "${referenceText}".
@@ -148,6 +152,7 @@ export const evaluatePronunciation = async (
 };
 
 export const generateExampleSentence = async (word: string, meaning: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const prompt = `Generate a simple, natural Japanese example sentence using the word "${word}" (which means "${meaning}").
     The sentence should be suitable for a beginner/intermediate learner.
@@ -169,18 +174,28 @@ export const generateExampleSentence = async (word: string, meaning: string): Pr
 export const playJapaneseAudio = async (text: string, speed: number = 1.0): Promise<void> => {
   const cleanText = text?.trim();
   if (!cleanText) return;
+  
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: cleanText }] }],
       config: {
-        responseModalities: [Modality.AUDIO],
+        // Use string "AUDIO" to avoid import issues or version mismatches with Modality enum
+        responseModalities: ["AUDIO"] as any,
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Kore' },
           },
         },
+        // Reduce safety settings to avoid blocking standard language learning text
+        safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ] as any
       },
     });
 
@@ -189,14 +204,15 @@ export const playJapaneseAudio = async (text: string, speed: number = 1.0): Prom
     const base64Audio = audioPart?.inlineData?.data;
     
     if (!base64Audio) {
-        const finishReason = response.candidates?.[0]?.finishReason;
-        const textPart = parts.find(p => p.text);
-        if (textPart?.text) {
-             console.warn("TTS returned text instead of audio:", textPart.text);
-        }
+        const candidate = response.candidates?.[0];
+        const finishReason = candidate?.finishReason;
         
         console.warn(`TTS generation failed. Finish reason: ${finishReason}`);
-        throw new Error("Failed to generate audio. The text might be unsupported or filtered.");
+        if (candidate?.content?.parts?.[0]?.text) {
+             console.warn("Model returned text instead of audio:", candidate.content.parts[0].text);
+        }
+        
+        throw new Error(`Failed to generate audio (Status: ${finishReason}). The text might be unsupported or filtered.`);
     }
 
     const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
