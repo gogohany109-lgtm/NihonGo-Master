@@ -3,12 +3,25 @@ import React from 'react';
 interface Props {
   darkMode: boolean;
   toggleTheme: () => void;
+  onOpenKey?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ darkMode, toggleTheme }) => {
+export const Header: React.FC<Props> = ({ darkMode, toggleTheme, onOpenKey }) => {
   return (
     <header className="flex flex-col items-center justify-center py-6 md:py-10 bg-paper dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 transition-colors duration-300 relative">
-      <div className="absolute right-4 top-4 md:right-8 md:top-8">
+      <div className="absolute right-4 top-4 md:right-8 md:top-8 flex items-center gap-2">
+        {onOpenKey && (
+          <button
+            onClick={onOpenKey}
+            className="p-2 rounded-full text-stone-500 hover:text-japanRed dark:text-stone-400 dark:hover:text-japanRed transition-colors focus:outline-none bg-white dark:bg-stone-800 shadow-sm border border-stone-100 dark:border-stone-700"
+            aria-label="API Key Settings"
+            title="Switch API Key"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={toggleTheme}
           className="p-2 rounded-full text-stone-500 hover:text-japanRed dark:text-stone-400 dark:hover:text-japanRed transition-colors focus:outline-none bg-white dark:bg-stone-800 shadow-sm border border-stone-100 dark:border-stone-700"

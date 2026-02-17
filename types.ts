@@ -3,7 +3,26 @@ export interface WordBreakdown {
   romaji: string;
   meaning: string;
   partOfSpeech: string;
-  exampleSentence?: string;
+  exampleSentence: string;
+}
+
+export interface KanjiDetail {
+  character: string;
+  onyomi: string;
+  kunyomi: string;
+  meaning: string;
+}
+
+export interface DictionaryEntry {
+  word: string;
+  reading: string;
+  romaji: string;
+  meanings: string[];
+  partOfSpeech: string;
+  jlptLevel?: string;
+  kanjiBreakdown?: KanjiDetail[];
+  usageNotes?: string;
+  exampleSentences: { ja: string; en: string }[];
 }
 
 export interface TranslationResult {
@@ -39,5 +58,6 @@ export enum AppState {
   IDLE,
   TRANSLATING,
   SUCCESS,
-  ERROR
+  ERROR,
+  DICTIONARY_LOADING
 }

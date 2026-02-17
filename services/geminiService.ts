@@ -1,31 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { TranslationResult, PronunciationResult } from "../types";
+import { TranslationResult, PronunciationResult, DictionaryEntry } from "../types";
 import { decodeBase64, decodeAudioData } from "./audioUtils";
 
-// Remove global instance to prevent stale API key usage or config issues
-// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const translateTextToJapanese = async (
   text: string,
   sourceLanguage: string
 ): Promise<TranslationResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getAIClient();
   try {
     const prompt = `
-      Translate the following text from ${sourceLanguage} to Japanese.
-      Provide the result in a structured JSON format.
-      The translation should be natural.
-      
-      Requirements:
-      1. Japanese: The translation in Kanji/Kana.
-      2. Romaji: Standard romanization.
-      3. Pronunciation: A phonetic guide using Romaji combined with symbols to help with speaking (e.g., use hyphens for syllable breaks 'ko-n-ni-chi-wa' or markers for pitch accents if relevant).
-      4. English Meaning: The literal or nuanced meaning.
-      5. Tone: Detect if it is Casual, Polite, or Formal.
-      6. Breakdown: Analyze key words and provide a simple Japanese example sentence (with English translation) for each.
-      7. Cultural Note: Optional context.
-
-      Text to translate: "${text}"
+      Translate to Japanese: "${text}" from ${sourceLanguage}.
+      Return JSON with: japanese, romaji, pronunciation, englishMeaning, tone (Casual, Polite, Formal/Keigo), breakdown (word, romaji, meaning, partOfSpeech, exampleSentence).
     `;
 
     const response = await ai.models.generateContent({
@@ -36,12 +23,12 @@ export const translateTextToJapanese = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            japanese: { type: Type.STRING, description: "The Japanese translation in Kanji/Kana" },
-            romaji: { type: Type.STRING, description: "Standard Romanized pronunciation" },
-            pronunciation: { type: Type.STRING, description: "Phonetic guide (e.g., syllable-separated Romaji like 'ha-ji-me-ma-shi-te')" },
-            englishMeaning: { type: Type.STRING, description: "Literal or nuance meaning in English" },
+            japanese: { type: Type.STRING },
+            romaji: { type: Type.STRING },
+            pronunciation: { type: Type.STRING },
+            englishMeaning: { type: Type.STRING },
             tone: { type: Type.STRING, enum: ["Casual", "Polite", "Formal/Keigo"] },
-            culturalNote: { type: Type.STRING, description: "Optional cultural context or usage tip" },
+            culturalNote: { type: Type.STRING },
             breakdown: {
               type: Type.ARRAY,
               items: {
@@ -51,8 +38,9 @@ export const translateTextToJapanese = async (
                   romaji: { type: Type.STRING },
                   meaning: { type: Type.STRING },
                   partOfSpeech: { type: Type.STRING },
-                  exampleSentence: { type: Type.STRING, description: "A simple example sentence using this word, including English translation." }
-                }
+                  exampleSentence: { type: Type.STRING }
+                },
+                required: ["word", "romaji", "meaning", "partOfSpeech", "exampleSentence"]
               }
             }
           },
@@ -61,179 +49,122 @@ export const translateTextToJapanese = async (
       }
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as TranslationResult;
-    }
-    throw new Error("No response text");
-  } catch (error) {
+    if (response.text) return JSON.parse(response.text);
+    throw new Error("Empty response");
+  } catch (error: any) {
     console.error("Translation error:", error);
-    throw error;
+    throw new Error(error.message || "Unknown error");
   }
 };
 
-export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const searchDictionary = async (query: string): Promise<DictionaryEntry> => {
+  const ai = getAIClient();
   try {
-    // Use gemini-3-flash-preview for multimodal tasks (audio to text) via generateContent
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [
-        {
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Audio
-              }
-            },
-            {
-              text: "Transcribe the spoken audio exactly into text. Do not add any explanation, punctuation explanations, or markdown. Just return the raw text of what was said."
-            }
-          ]
-        }
-      ]
-    });
-    return response.text?.trim() || "";
-  } catch (error) {
-    console.error("Transcription error:", error);
-    throw error;
-  }
-};
-
-export const evaluatePronunciation = async (
-  base64Audio: string, 
-  mimeType: string, 
-  referenceText: string
-): Promise<PronunciationResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  try {
-    const prompt = `
-      Listen to the audio. The speaker is trying to say this Japanese text: "${referenceText}".
-      
-      1. Transcribe exactly what you heard the speaker say in Japanese.
-      2. Rate the pronunciation accuracy from 0 to 100.
-      3. Provide brief, constructive feedback on what was mispronounced or could be improved.
-      
-      Return JSON.
-    `;
-
+    const prompt = `Dictionary entry for: "${query}". Return JSON.`;
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        {
-            parts: [
-                { inlineData: { mimeType: mimeType, data: base64Audio } },
-                { text: prompt }
-            ]
-        }
-      ],
+      contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            score: { type: Type.INTEGER, description: "Score from 0 to 100" },
-            transcript: { type: Type.STRING, description: "What the AI actually heard" },
-            feedback: { type: Type.STRING, description: "Constructive advice" }
+            word: { type: Type.STRING },
+            reading: { type: Type.STRING },
+            romaji: { type: Type.STRING },
+            meanings: { type: Type.ARRAY, items: { type: Type.STRING } },
+            partOfSpeech: { type: Type.STRING },
+            jlptLevel: { type: Type.STRING },
+            usageNotes: { type: Type.STRING },
+            kanjiBreakdown: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  character: { type: Type.STRING },
+                  onyomi: { type: Type.STRING },
+                  kunyomi: { type: Type.STRING },
+                  meaning: { type: Type.STRING }
+                }
+              }
+            },
+            exampleSentences: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: { ja: { type: Type.STRING }, en: { type: Type.STRING } }
+              }
+            }
           },
+          required: ["word", "reading", "romaji", "meanings", "partOfSpeech", "exampleSentences"]
+        }
+      }
+    });
+    if (response.text) return JSON.parse(response.text);
+    throw new Error("Not found");
+  } catch (error: any) {
+    throw new Error(error.message || "Dictionary error");
+  }
+};
+
+export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
+  const ai = getAIClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ parts: [{ inlineData: { mimeType, data: base64Audio } }, { text: "Transcribe audio." }] }]
+    });
+    return response.text?.trim() || "";
+  } catch (error: any) {
+    throw new Error(error.message || "Transcription error");
+  }
+};
+
+export const evaluatePronunciation = async (base64Audio: string, mimeType: string, referenceText: string): Promise<PronunciationResult> => {
+  const ai = getAIClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ parts: [{ inlineData: { mimeType, data: base64Audio } }, { text: `Evaluate Japanese: "${referenceText}".` }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: { score: { type: Type.INTEGER }, transcript: { type: Type.STRING }, feedback: { type: Type.STRING } },
           required: ["score", "transcript", "feedback"]
         }
       }
     });
-
-    if (response.text) {
-        return JSON.parse(response.text) as PronunciationResult;
-    }
-    throw new Error("No evaluation response");
-  } catch (error) {
-      console.error("Evaluation error:", error);
-      throw error;
-  }
-};
-
-export const generateExampleSentence = async (word: string, meaning: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  try {
-    const prompt = `Generate a simple, natural Japanese example sentence using the word "${word}" (which means "${meaning}").
-    The sentence should be suitable for a beginner/intermediate learner.
-    Output format: [Japanese Sentence] ([English Translation])
-    Example: 猫がベッドで寝ています (The cat is sleeping on the bed)`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
-
-    return response.text?.trim() || "";
-  } catch (error) {
-    console.error("Error generating example sentence:", error);
-    return "";
+    return JSON.parse(response.text || "{}");
+  } catch (error: any) {
+    throw new Error(error.message || "Evaluation error");
   }
 };
 
 export const playJapaneseAudio = async (text: string, speed: number = 1.0): Promise<void> => {
   const cleanText = text?.trim();
   if (!cleanText) return;
-  
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
+  const ai = getAIClient();
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text: cleanText }] }],
       config: {
-        // Use string "AUDIO" to avoid import issues or version mismatches with Modality enum
         responseModalities: ["AUDIO"] as any,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' },
-          },
-        },
-        // Reduce safety settings to avoid blocking standard language learning text
-        safetySettings: [
-            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-        ] as any
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+        safetySettings: [{ category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }] as any
       },
     });
-
-    const parts = response.candidates?.[0]?.content?.parts || [];
-    const audioPart = parts.find(p => p.inlineData?.data);
-    const base64Audio = audioPart?.inlineData?.data;
-    
-    if (!base64Audio) {
-        const candidate = response.candidates?.[0];
-        const finishReason = candidate?.finishReason;
-        
-        console.warn(`TTS generation failed. Finish reason: ${finishReason}`);
-        if (candidate?.content?.parts?.[0]?.text) {
-             console.warn("Model returned text instead of audio:", candidate.content.parts[0].text);
-        }
-        
-        throw new Error(`Failed to generate audio (Status: ${finishReason}). The text might be unsupported or filtered.`);
-    }
-
-    const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    const outputNode = outputAudioContext.createGain();
-    
-    const audioBuffer = await decodeAudioData(
-      decodeBase64(base64Audio),
-      outputAudioContext,
-      24000,
-      1
-    );
-
-    const source = outputAudioContext.createBufferSource();
-    source.buffer = audioBuffer;
+    const base64Audio = response.candidates?.[0]?.content?.parts.find(p => p.inlineData)?.inlineData?.data;
+    if (!base64Audio) throw new Error("Audio failed");
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const buffer = await decodeAudioData(decodeBase64(base64Audio), ctx);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
     source.playbackRate.value = speed;
-    source.connect(outputNode);
-    outputNode.connect(outputAudioContext.destination);
+    source.connect(ctx.destination);
     source.start();
-
   } catch (error) {
     console.error("TTS Error:", error);
-    throw error;
   }
 };
